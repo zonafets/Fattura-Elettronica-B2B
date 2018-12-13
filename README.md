@@ -43,18 +43,24 @@ Private tabella
 Private Function cfg(ID As String) As String
     cfg = econfig(ID)
 End Function
+```
 
+```vba
 Private Function progressivo() As Integer
     progressivo = CInt(cfg("progressivo"))
 End Function
+```
 
+```vba
 Private Sub avanzaProgressivo()
     Dim db
     Set db = Application.CurrentDb
     db.Execute ("update efattura_variabili set valore=valore+1 where id='progressivo'")
     If db.recordsaffected = 0 Then Err.Raise errProgressive, "efattura", "Progressivo non avanzato"
 End Sub
+```
 
+```vba
 Private Sub registraDataProgressivoXML(Tipo As TipoDocumentoType, ID As Long, progressivo As String)
     Dim db
     Set db = Application.CurrentDb
@@ -71,11 +77,15 @@ Private Sub registraDataProgressivoXML(Tipo As TipoDocumentoType, ID As Long, pr
     
     If db.recordsaffected = 0 Then Err.Raise errNotMarked, "efattura", "Non è stato possibile marcare la data(XML) fattura"
 End Sub
+```
 
+```vba
 Private Function FileExists(ByVal path_ As String) As Boolean
     FileExists = (Len(Dir(path_)) > 0)
 End Function
+```
 
+```vba
 ' ==========================================================
 ' facility per gestione nodi xml
 ' ==========================================================
@@ -120,7 +130,9 @@ Private Sub add(name As String, Optional value)
     root.appendChild child
     child.Text = value
 End Sub
+```
 
+```vba
 ' ==========================================================
 ' utilità per stampa indentata dell'xml
 ' ==========================================================
@@ -136,7 +148,9 @@ Private Function PrettyXML(ByVal Source, Optional ByVal EmitXMLDeclaration As Bo
     Reader.parse Source
     PrettyXML = Writer.Output
 End Function
+```
 
+```vba
 Private Function dati(tabella As String, Optional riferimenti As Variant, Optional chiavi As Variant)
     Dim sql As String
     Dim valore As String
