@@ -1,11 +1,13 @@
-# Fattura-Elettronica-B2B
+# Fattura Elettronica B2B
 
-** Questo codice è formalmente corretto in se e secondo le specifiche ma non è i risultati non sono ancora stati verificati **
+** Questo codice è in sé formalmente corretto e produce un XML ben formato secondo le specifiche ma i risultati non sono ancora stati verificati.
+Non appena verificato, questo avviso verrà cambiato **
 
-```RealBasic
-Option Compare Database
-Option Explicit
+### Classe "efattura"
 
+#### Dichiarazioni
+
+```vba
 ' da tabella "efatture_costanti"
 Public Enum TipoDocumentoType
     Fattura = 1
@@ -27,10 +29,10 @@ Private Const errNoTarget = 6
 Private doc As DOMDocument60
 Private root As IXMLDOMElement
 Private tabella
+```
 
-'Private xmlPath() As String
-'Private xmlPathIdx As Integer
-
+#### Funzioni di comodo
+```vba
 Private Function cfg(ID As String) As String
     cfg = econfig(ID)
 End Function
@@ -165,25 +167,16 @@ Private Function dati(tabella As String, Optional riferimenti As Variant, Option
     End If
     Set dati = Application.CurrentDb.OpenRecordset(sql)
 End Function
+```
 
+#### Funzione principale
+```vba
 ' ==========================================================
 ' genera files xml per fatturazione elettronica
 ' ==========================================================
 
 Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As String
 
-    ' ===========================================
-    ' documentazione ufficiale
-    ' ===========================================
-    '
-    ' http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/Rappresentazione_tabellare_del_tracciato_FatturaPA_versione_1.2.1.xls
-    ' http://www.fatturapa.gov.it/export/fatturazione/sdi/Suggerimenti_Compilazione_FatturaPA_1.5.pdf
-    '
-    ' fogli di stile per stampe
-    ' ordinaria: http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaordinaria_v1.2.1.xsl
-    ' verso PA:  http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaPA_v1.2.1.xsl
-    
-    ' legge le testate fino al pregresso di 240gg
     Dim cliente
     Dim testata
     Dim aliquote
@@ -403,24 +396,10 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     
     Set tabella = Nothing
 
-Endnet Function ' FatturaElettronica
-
-Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
-
-    Application.DBEngine.BeginTrans
-    On Error GoTo errors
-    Genera = FatturaElettronica(ID, Tipo)
-    Application.DBEngine.CommitTrans
-    Exit Function
-    
-errors:
-    Application.DBEngine.Rollback
-    MsgBox Err.Description, vbError, "Errore nell'esportazione"
-    On Error GoTo 0
-
-End Function
+End Function ' FatturaElettronica
 ```
 
+#### Funzione interfaccia esterna
 ```vba
 Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
 
@@ -438,53 +417,25 @@ errors:
 End Function
 ```
 
-```vbnet
-Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
+#### Esempio d'uso
+```vba
+Public Function efatturaGeneraFattura(ID_Fattura As Long)
 
-    Application.DBEngine.BeginTrans
-    On Error GoTo errors
-    Genera = FatturaElettronica(ID, Tipo)
-    Application.DBEngine.CommitTrans
-    Exit Function
+    Dim fatturaxml As New efattura
+    Dim file As String
+    file = fatturaxml.Genera(ID_Fattura, Fattura)
+    If file <> "" Then MsgBox "Generata fattura " & file
+    Set fatturaxml = Nothing
     
-errors:
-    Application.DBEngine.Rollback
-    MsgBox Err.Description, vbError, "Errore nell'esportazione"
-    On Error GoTo 0
-
 End Function
-```
 
-```visual basic
-Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
+Public Function efatturaGeneraNota(ID_Nota_Di_Credito As Long)
 
-    Application.DBEngine.BeginTrans
-    On Error GoTo errors
-    Genera = FatturaElettronica(ID, Tipo)
-    Application.DBEngine.CommitTrans
-    Exit Function
-    
-errors:
-    Application.DBEngine.Rollback
-    MsgBox Err.Description, vbError, "Errore nell'esportazione"
-    On Error GoTo 0
-
-End Function
-```
-
-```visualbasic
-Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
-
-    Application.DBEngine.BeginTrans
-    On Error GoTo errors
-    Genera = FatturaElettronica(ID, Tipo)
-    Application.DBEngine.CommitTrans
-    Exit Function
-    
-errors:
-    Application.DBEngine.Rollback
-    MsgBox Err.Description, vbError, "Errore nell'esportazione"
-    On Error GoTo 0
+    Dim fatturaxml As New efattura
+    Dim file As String
+    file = fatturaxml.Genera(ID_Nota_Di_Credito, NotaDiCredito)
+    If file <> "" Then MsgBox "Generata nota di accredito " & file
+    Set fatturaxml = Nothing
 
 End Function
 ```
