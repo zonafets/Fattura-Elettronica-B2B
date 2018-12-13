@@ -3,7 +3,14 @@
 ** Questo codice è in sé formalmente corretto e produce un XML ben formato secondo le specifiche ma i risultati non sono ancora stati verificati.
 Non appena verificato, questo avviso verrà cambiato **
 
+### Scopo
+Essendo il BASIC un linguaggio molto semplice, il seguente codice fornisce un modello propedeutico.
+
 ### Classe "efattura"
+
+I dati del software d'origine sono stati precedentemente normalizzati tramite query.
+
+La funzione impiega la libreria Microsoft MSXML6 ma attraverso le funzioni "into" e "add", è possibile generare da sè il documento, evitendo tale dipendenza.
 
 #### Dichiarazioni
 
@@ -385,7 +392,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     If (FileExists(file)) Then Kill (file)
     
     ' anche se debug.print doc.xml stampa solo <?xml version="1.0"?>
-    ' ciene salvato correttamente con ... encoding="UTF-8"?>
+    ' viene salvato correttamente con ... encoding="UTF-8"?>
     doc.Save file
     
     Debug.Print "Generata fattura elettronica in: " + file
