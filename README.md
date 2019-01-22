@@ -1,7 +1,6 @@
 # Fattura Elettronica B2B
 
-** Questo codice è in sé formalmente corretto e produce un XML ben formato secondo le specifiche ma i risultati non sono ancora stati verificati.
-Non appena verificato, questo avviso verrà cambiato **
+** Questo codice è stato verificato e ha prodotto fatture accettate dal SID con IVA e IVA esente, dettagli ordinari e dettagli scontati. **
 
 ### Scopo
 Essendo il BASIC un linguaggio molto semplice, il seguente codice fornisce un modello propedeutico.
@@ -192,12 +191,25 @@ End Function
 
 #### Funzione principale
 ```vba
+
 ' ==========================================================
 ' genera files xml per fatturazione elettronica
 ' ==========================================================
 
 Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As String
 
+    ' ===========================================
+    ' documentazione ufficiale
+    ' ===========================================
+    '
+    ' http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/Rappresentazione_tabellare_del_tracciato_FatturaPA_versione_1.2.1.xls
+    ' http://www.fatturapa.gov.it/export/fatturazione/sdi/Suggerimenti_Compilazione_FatturaPA_1.5.pdf
+    '
+    ' fogli di stile per stampe
+    ' ordinaria: http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaordinaria_v1.2.1.xsl
+    ' verso PA:  http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaPA_v1.2.1.xsl
+    
+    ' legge le testate fino al pregresso di 240gg
     Dim cliente
     Dim testata
     Dim aliquote
@@ -205,7 +217,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     Dim node As IXMLDOMElement
     Dim path_destinazione As String
     
-    Dim Num As Long
+    Dim num As Long
     Dim TipoDocumento As String
     
     Dim tabella_testata As String
@@ -227,7 +239,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         tabella_dettaglio = "efattura_nota_di_credito_dettaglio"
         tabella_iva = "efattura_nota_di_credito_iva"
     End If
-    Num = ID
+    num = ID
         
     Set doc = New DOMDocument60
     ' doc.async = False
@@ -246,7 +258,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         
     Set root = doc.selectSingleNode("p:FatturaElettronica")
     
-    Set testata = dati(tabella_testata, "Numero", Num)
+    Set testata = dati(tabella_testata, "Numero", num)
     
     Set cliente = dati("efattura_cliente", "ID", testata!ID_cliente)
 
@@ -257,8 +269,8 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         into "DatiTrasmissione"
         
             into "IdTrasmittente"
-                add "IDPaese", "IT"
-                add "IDCodice", cfg("piva")
+                add "IdPaese", "IT"
+                add "IdCodice", cfg("cf") ' cfg("piva")
                 out
             
             add "ProgressivoInvio", CStr(progressivo())
@@ -277,8 +289,8 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         
             into "DatiAnagrafici"
                 into "IdFiscaleIVA"
-                    add "IDPaese", "IT"
-                    add "IDCodice", cfg("piva")
+                    add "IdPaese", "IT"
+                    add "IdCodice", cfg("piva")
                     out
                 into "Anagrafica"
                     add "Denominazione", cfg("denominazione")
@@ -363,9 +375,25 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                     ' la descrizione è limitata a 100 caratteri
                     add "Descrizione", Left(dettaglio!Descrizione, 100)
                     add "Quantita"
+                    add "UnitaMisura"
                     add "PrezzoUnitario"
+                    
+                    If dettaglio!Percentuale <> "" Or dettaglio!Importo <> "" Then
+                        into "ScontoMaggiorazione"
+                            add "Tipo"
+                            If dettaglio!Percentuale <> "" Then add "Percentuale"
+                            ' se specificati assieme, "Importo" prevale
+                            If dettaglio!Importo <> "" Then add "Importo"
+                        out
+                    End If
+                    
                     add "PrezzoTotale"
                     add "AliquotaIVA"
+                    
+                    If dettaglio!Natura <> "" Then
+                        add "Natura"
+                    End If
+                    
                     out
                                 
                 dettaglio.MoveNext
@@ -377,6 +405,11 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                                 
                 into "DatiRiepilogo", aliquote
                     add "AliquotaIVA"
+                    
+                    If aliquote!Natura <> "" Then
+                        add "Natura"
+                    End If
+
                     add "ImponibileImporto"
                     add "Imposta"
                     add "EsigibilitaIVA"
@@ -386,11 +419,14 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
             Wend ' aliquote
             
             out "DatiBeniServizi"
-            
+        
         into "DatiPagamento", testata
-            add "ModalitaPagamento"
-            add "DataScadenzaPagamento"
-            add "ImportoPagamento"
+            add "CondizioniPagamento"
+            into "DettaglioPagamento"
+                add "ModalitaPagamento"
+                add "DataScadenzaPagamento"
+                add "ImportoPagamento"
+                out
             out
             
         registraDataProgressivoXML Tipo, testata!Numero, CStr(progressivo())
@@ -406,7 +442,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     If (FileExists(file)) Then Kill (file)
     
     ' anche se debug.print doc.xml stampa solo <?xml version="1.0"?>
-    ' viene salvato correttamente con ... encoding="UTF-8"?>
+    ' ciene salvato correttamente con ... encoding="UTF-8"?>
     doc.Save file
     
     Debug.Print "Generata fattura elettronica in: " + file
@@ -418,6 +454,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     Set tabella = Nothing
 
 End Function ' FatturaElettronica
+
 ```
 
 #### Funzione interfaccia esterna

@@ -9,6 +9,7 @@ Attribute VB_PredeclaredId = False
 Attribute VB_Exposed = False
 Option Compare Database
 Option Explicit
+' versione: 2018.12.26
 
 ' da tabella "efatture_costanti"
 Public Enum TipoDocumentoType
@@ -195,7 +196,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     Dim node As IXMLDOMElement
     Dim path_destinazione As String
     
-    Dim Num As Long
+    Dim num As Long
     Dim TipoDocumento As String
     
     Dim tabella_testata As String
@@ -217,7 +218,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         tabella_dettaglio = "efattura_nota_di_credito_dettaglio"
         tabella_iva = "efattura_nota_di_credito_iva"
     End If
-    Num = ID
+    num = ID
         
     Set doc = New DOMDocument60
     ' doc.async = False
@@ -236,7 +237,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         
     Set root = doc.selectSingleNode("p:FatturaElettronica")
     
-    Set testata = dati(tabella_testata, "Numero", Num)
+    Set testata = dati(tabella_testata, "Numero", num)
     
     Set cliente = dati("efattura_cliente", "ID", testata!ID_cliente)
 
@@ -247,8 +248,8 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         into "DatiTrasmissione"
         
             into "IdTrasmittente"
-                add "IDPaese", "IT"
-                add "IDCodice", cfg("piva")
+                add "IdPaese", "IT"
+                add "IdCodice", cfg("cf") ' cfg("piva")
                 out
             
             add "ProgressivoInvio", CStr(progressivo())
@@ -267,8 +268,8 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
         
             into "DatiAnagrafici"
                 into "IdFiscaleIVA"
-                    add "IDPaese", "IT"
-                    add "IDCodice", cfg("piva")
+                    add "IdPaese", "IT"
+                    add "IdCodice", cfg("piva")
                     out
                 into "Anagrafica"
                     add "Denominazione", cfg("denominazione")
@@ -353,9 +354,25 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                     ' la descrizione è limitata a 100 caratteri
                     add "Descrizione", Left(dettaglio!Descrizione, 100)
                     add "Quantita"
+                    add "UnitaMisura"
                     add "PrezzoUnitario"
+                    
+                    If dettaglio!Percentuale <> "" Or dettaglio!Importo <> "" Then
+                        into "ScontoMaggiorazione"
+                            add "Tipo"
+                            If dettaglio!Percentuale <> "" Then add "Percentuale"
+                            ' se specificati assieme, "Importo" prevale
+                            If dettaglio!Importo <> "" Then add "Importo"
+                        out
+                    End If
+                    
                     add "PrezzoTotale"
                     add "AliquotaIVA"
+                    
+                    If dettaglio!Natura <> "" Then
+                        add "Natura"
+                    End If
+                    
                     out
                                 
                 dettaglio.MoveNext
@@ -367,6 +384,11 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                                 
                 into "DatiRiepilogo", aliquote
                     add "AliquotaIVA"
+                    
+                    If aliquote!Natura <> "" Then
+                        add "Natura"
+                    End If
+
                     add "ImponibileImporto"
                     add "Imposta"
                     add "EsigibilitaIVA"
@@ -376,11 +398,14 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
             Wend ' aliquote
             
             out "DatiBeniServizi"
-            
+        
         into "DatiPagamento", testata
-            add "ModalitaPagamento"
-            add "DataScadenzaPagamento"
-            add "ImportoPagamento"
+            add "CondizioniPagamento"
+            into "DettaglioPagamento"
+                add "ModalitaPagamento"
+                add "DataScadenzaPagamento"
+                add "ImportoPagamento"
+                out
             out
             
         registraDataProgressivoXML Tipo, testata!Numero, CStr(progressivo())
@@ -423,5 +448,4 @@ errors:
     On Error GoTo 0
 
 End Function
-
 
