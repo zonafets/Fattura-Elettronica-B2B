@@ -1,6 +1,6 @@
 # Fattura Elettronica B2B
 
-** Questo codice è stato verificato e ha prodotto fatture accettate dal SID con IVA e IVA esente, dettagli ordinari e dettagli scontati. **
+** Questo codice è stato verificato e ha prodotto fatture accettate dal SID con IVA e IVA esente, dettagli ordinari e dettagli scontati, bollo. **
 
 ### Scopo
 Essendo il BASIC un linguaggio molto semplice, il seguente codice fornisce un modello propedeutico.
@@ -11,77 +11,18 @@ I dati del software d'origine sono stati precedentemente normalizzati tramite qu
 
 La funzione impiega la libreria Microsoft MSXML6 ma attraverso le funzioni "into" e "add", è possibile generare da sè il documento, evitendo tale dipendenza.
 
-#### Dichiarazioni
-
-```vba
-' da tabella "efatture_costanti"
-Public Enum TipoDocumentoType
-    Fattura = 1
-    NotaDiCredito = 4
-End Enum
-
-Private Const errNotMarked = 1
-Private Const errProgressive = 2
-Private Const errXMLStruct = 3
-Private Const errXMLAdd = 4
-Private Const errXMLParse = 5
-Private Const errNoTarget = 6
-
-' se da errore in questa riga (manca DOMDocument60):
-' 1. stoppare l'esecuzione di ogni programma
-' 2. aprire un modulo vbasic
-' 3. Strumenti->Riferimenti cercare e aggiungere "Microsoft XML, v6.0"
-
-Private doc As DOMDocument60
-Private root As IXMLDOMElement
-Private tabella
-```
 
 #### Funzioni di comodo
 ```vba
 Private Function cfg(ID As String) As String
-    cfg = econfig(ID)
-End Function
-```
 
-```vba
 Private Function progressivo() As Integer
-    progressivo = CInt(cfg("progressivo"))
-End Function
-```
 
-```vba
 Private Sub avanzaProgressivo()
-    Dim db
-    Set db = Application.CurrentDb
-    db.Execute ("update efattura_variabili set valore=valore+1 where id='progressivo'")
-    If db.recordsaffected = 0 Then Err.Raise errProgressive, "efattura", "Progressivo non avanzato"
-End Sub
-```
 
-```vba
-Private Sub registraDataProgressivoXML(Tipo As TipoDocumentoType, ID As Long, progressivo As String)
-    Dim db
-    Set db = Application.CurrentDb
-    
-    Select Case Tipo
-        
-        Case Fattura:
-        db.Execute ("update tabella_fatturazione set dataXML=now(),progressivoXML='" & progressivo & "' where id_fattura=" & ID)
-        
-        Case NotaDiCredito:
-        db.Execute ("update tabella_note_accredito set dataXML=now(),progressivoXML='" & progressivo & "' where [id_nota-accredito]=" & ID)
+Private Sub registraDataProgressivoXML(Tipo As 
 
-    End Select
-    
-    If db.recordsaffected = 0 Then Err.Raise errNotMarked, "efattura", "Non è stato possibile marcare la data(XML) fattura"
-End Sub
-```
-
-```vba
 Private Function FileExists(ByVal path_ As String) As Boolean
-    FileExists = (Len(Dir(path_)) > 0)
-End Function
 ```
 
 ```vba
@@ -90,45 +31,10 @@ End Function
 ' ==========================================================
 
 Private Sub into(name As String, Optional tabellaDiRiferimento)
-    Dim child As IXMLDOMElement
-    Set child = doc.createElement(name)
-    root.appendChild child
-    Set root = child
-    If Not IsMissing(tabellaDiRiferimento) Then Set tabella = tabellaDiRiferimento
-    'ReDim Preserve xmlPath(xmlPathIdx)
-    'xmlPath(xmlPathIdx) = name
-    'xmlPathIdx = xmlPathIdx + 1
-End Sub
 
 Private Sub out(Optional currentNodeName)
-    If Not IsMissing(currentNodeName) Then
-        If root.nodeName <> currentNodeName Then
-            Err.Raise errXMLStruct, "efattura", "Navigazione errata nell'XML:" + root.nodeName + "<>" + currentNodeName
-        End If
-    End If
-    Set root = root.parentNode
-    'ReDim Preserve xmlPath(xmlPathIdx - 1)
-    'xmlPathIdx = xmlPathIdx - 1
-End Sub
 
 Private Sub add(name As String, Optional value)
-    Dim child As IXMLDOMElement
-    Dim err_number As Long
-    
-    If IsMissing(value) And Not tabella Is Nothing Then
-        On Error Resume Next
-        value = tabella.Fields(name)
-        err_number = Err.Number
-        On Error GoTo 0
-        If err_number <> 0 Then Err.Raise errXMLAdd, "efattura", "Campo '" + name + "' non trovato nella tabella '" + tabella.name + "'"
-    End If
-    
-    If Nz(value, "") = "" Then Exit Sub
-    
-    Set child = doc.createElement(name)
-    root.appendChild child
-    child.Text = value
-End Sub
 ```
 
 ```vba
@@ -136,57 +42,13 @@ End Sub
 ' utilità per stampa indentata dell'xml
 ' ==========================================================
 
-' questo stampa utf-16 anziché 8
+' n.b. questo stampa utf-16 anziché 8
 Private Function PrettyXML(ByVal Source, Optional ByVal EmitXMLDeclaration As Boolean) As String
-    Dim Writer As MXXMLWriter60, Reader As SAXXMLReader60
-    Set Writer = New MXXMLWriter60
-    Writer.indent = True
-    Writer.omitXMLDeclaration = Not EmitXMLDeclaration
-    Set Reader = New SAXXMLReader60
-    Set Reader.contentHandler = Writer
-    Reader.parse Source
-    PrettyXML = Writer.Output
-End Function
 ```
 
 ```vba
+' imposta la tabella da cui acquisire i dati
 Private Function dati(tabella As String, Optional riferimenti As Variant, Optional chiavi As Variant)
-    Dim sql As String
-    Dim valore As String
-    Dim chiave As Variant
-    Dim riferimento As String
-    Dim ariferimenti As Variant
-    Dim achiavi As Variant
-    Dim where As String
-    Dim i As Integer
-    If IsMissing(riferimenti) Then
-        sql = "select * from [" + tabella + "]"
-    Else
-        If TypeName(riferimenti) <> "Variant()" Then
-            ariferimenti = Array(riferimenti)
-        Else
-            ariferimenti = riferimenti
-        End If
-        If TypeName(chiavi) <> "Variant()" Then
-            achiavi = Array(chiavi)
-        Else
-            achiavi = chiavi
-        End If
-        
-        For i = LBound(ariferimenti) To UBound(ariferimenti)
-            chiave = achiavi(i)
-            riferimento = ariferimenti(i)
-            If TypeName(chiave) = "Field" Then chiave = chiavi(i).valore
-            If TypeName(chiave) = "string" Then valore = """" + chiave + """" Else valore = CStr(chiave)
-            where = where + IIf(i > 0, " and ", "") + "([" + riferimento + "]=" + valore + ")"
-        Next i
-        sql = "select * from [" + tabella + "] where " + where
-        If tabella <> "efattura_cliente" Then
-            sql = sql + " order by Numero"
-        End If
-    End If
-    Set dati = Application.CurrentDb.OpenRecordset(sql)
-End Function
 ```
 
 #### Funzione principale
@@ -209,7 +71,6 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     ' ordinaria: http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaordinaria_v1.2.1.xsl
     ' verso PA:  http://www.fatturapa.gov.it/export/fatturazione/sdi/fatturapa/v1.2.1/fatturaPA_v1.2.1.xsl
     
-    ' legge le testate fino al pregresso di 240gg
     Dim cliente
     Dim testata
     Dim aliquote
@@ -290,7 +151,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
             into "DatiAnagrafici"
                 into "IdFiscaleIVA"
                     add "IdPaese", "IT"
-                    add "IdCodice", cfg("piva")
+                    add "IdCodice", cfg("cf") ' 190211\s.zaglio ex piva
                     out
                 into "Anagrafica"
                     add "Denominazione", cfg("denominazione")
@@ -343,6 +204,16 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                 add "Data"
                 add "Numero"
                 ' la causale, se c'è, va spezzata in blocchi da 200 caratteri
+                If (Nz(testata!ImportoBollo, "") <> "") Then
+                    into "DatiBollo"
+                        add "BolloVirtuale", "SI"
+                        add "ImportoBollo"
+                        out
+                End If
+
+                add "Causale", testata!causale
+                add "Causale", testata!causale1
+                add "Causale", testata!causale2
                 out
                 
             ' into "DatiOrdineAcquisto"  ' non obbligatorio
@@ -390,9 +261,7 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                     add "PrezzoTotale"
                     add "AliquotaIVA"
                     
-                    If dettaglio!Natura <> "" Then
-                        add "Natura"
-                    End If
+                    add "Natura" ' valorizzata solo se AIVA = 0
                     
                     out
                                 
@@ -406,10 +275,9 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
                 into "DatiRiepilogo", aliquote
                     add "AliquotaIVA"
                     
-                    If aliquote!Natura <> "" Then
-                        add "Natura"
-                    End If
-
+                    add "Natura" ' valorizzata solo se AIVA = 0
+                    add "RiferimentoNormativo" ' valorizzato solo se AIVA = 0
+                    
                     add "ImponibileImporto"
                     add "Imposta"
                     add "EsigibilitaIVA"
@@ -452,7 +320,6 @@ Private Function FatturaElettronica(ID As Long, Tipo As TipoDocumentoType) As St
     avanzaProgressivo
     
     Set tabella = Nothing
-
 End Function ' FatturaElettronica
 
 ```
@@ -460,40 +327,11 @@ End Function ' FatturaElettronica
 #### Funzione interfaccia esterna
 ```vba
 Public Function Genera(ID As Long, Tipo As TipoDocumentoType) As String
-
-    Application.DBEngine.BeginTrans
-    On Error GoTo errors
-    Genera = FatturaElettronica(ID, Tipo)
-    Application.DBEngine.CommitTrans
-    Exit Function
-    
-errors:
-    Application.DBEngine.Rollback
-    MsgBox Err.Description, vbError, "Errore nell'esportazione"
-    On Error GoTo 0
-
-End Function
 ```
 
 #### Esempio d'uso
 ```vba
 Public Function efatturaGeneraFattura(ID_Fattura As Long)
 
-    Dim fatturaxml As New efattura
-    Dim file As String
-    file = fatturaxml.Genera(ID_Fattura, Fattura)
-    If file <> "" Then MsgBox "Generata fattura " & file
-    Set fatturaxml = Nothing
-    
-End Function
-
 Public Function efatturaGeneraNota(ID_Nota_Di_Credito As Long)
-
-    Dim fatturaxml As New efattura
-    Dim file As String
-    file = fatturaxml.Genera(ID_Nota_Di_Credito, NotaDiCredito)
-    If file <> "" Then MsgBox "Generata nota di accredito " & file
-    Set fatturaxml = Nothing
-
-End Function
 ```
